@@ -45,6 +45,9 @@ define(function(require, exports, module) {
              * @param {object} audioDoc the audio Document to extract data from and act on
              */
             function setPath(audioDoc) {
+                if (!_.isObject(audioDoc) || !_.isObject(audioDoc.tab) || !_.isString(audioDoc.tab.path))
+                    return;
+
                 var tab = audioDoc.tab;
                 var path = tab.path;
                 var session = audioDoc.getSession();
@@ -75,7 +78,7 @@ define(function(require, exports, module) {
              * @param {string} path the path of the file being watched
              */
             function unwatch(path) {
-                if (_.isUndefined(path))
+                if (!_.isString(path))
                     return;
 
                 if (watchedPaths[path])
@@ -185,13 +188,9 @@ define(function(require, exports, module) {
                 var audio = audioDoc.getSession().audio;
                 // remove player from pane
                 container.removeChild(audio);
-
+                // unwatch path if being watched
                 var path = audioDoc.tab.path;
-                // alert user if file was deleted before unwatching
-                watcher.check(path);
-                setTimeout(function() {
-                    unwatch(path);
-                }, 1000);
+                unwatch(path);
             });
 
             plugin.freezePublicAPI({});
