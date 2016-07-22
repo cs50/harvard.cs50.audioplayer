@@ -1,17 +1,19 @@
 define(function(require, exports, module) {
     main.consumes = [
-        "dialog.alert", "dialog.error", "Editor", "editors", "ui", "vfs",
-        "watcher"
+        "ace", "dialog.alert", "dialog.error", "Editor", "editors", "layout",
+        "tabManager", "ui", "vfs", "watcher"
     ];
 
     main.provides = ["c9.ide.cs50.audioplayer"];
     return main;
 
     function main(options, imports, register) {
+        var ace = imports.ace;
         var Editor = imports.Editor;
         var editors = imports.editors;
         var showAlert = imports["dialog.alert"].show;
         var showError = imports["dialog.error"].show;
+        var tabManager = imports.tabManager;
         var ui = imports.ui;
         var vfs = imports.vfs;
         var watcher = imports.watcher;
@@ -45,7 +47,9 @@ define(function(require, exports, module) {
              * @param {object} audioDoc the audio Document to extract data from and act on
              */
             function setPath(audioDoc) {
-                if (!_.isObject(audioDoc) || !_.isObject(audioDoc.tab) || !_.isString(audioDoc.tab.path))
+                if (!_.isObject(audioDoc)
+                    || !_.isObject(audioDoc.tab)
+                    || !_.isString(audioDoc.tab.path))
                     return;
 
                 var tab = audioDoc.tab;
@@ -111,10 +115,12 @@ define(function(require, exports, module) {
             plugin.on("documentLoad", function(e) {
                 var audioDoc = e.doc;
                 var session = audioDoc.getSession();
+
                 // avoid re-creating audio element and re-adding listeners
                 if (session.audio) {
                     return;
                 }
+
                 // create audio element
                 session.audio = document.createElement("audio");
                 session.audio.setAttribute("controls", "");
@@ -124,6 +130,7 @@ define(function(require, exports, module) {
                 session.audio.addEventListener("error", function() {
                     showError("Error loading audio file");
                 });
+
                 // preserve playing or pausing state
                 session.audio.addEventListener("playing", function() {
                     session.paused = false;
@@ -131,6 +138,7 @@ define(function(require, exports, module) {
                 session.audio.addEventListener("pause", function() {
                     session.paused = true;
                 });
+
                 // handle renaming file from tree while open
                 audioDoc.tab.on("setPath", function(e) {
                     setPath(audioDoc);
@@ -140,10 +148,12 @@ define(function(require, exports, module) {
                 watcher.on("delete", function(e) {
                     var path = e.path;
                     var tab = watchedPaths[path];
+
                     // ensure path is being watched
                     if (_.isUndefined(tab))
                         return;
                     unwatch(path);
+
                     // alert user and close tab
                     showAlert(
                         "File is no longer available",
@@ -152,12 +162,48 @@ define(function(require, exports, module) {
                         tab.close
                     );
                 });
+
+                /**
+                 * Sets background color of audio player's tab to the same
+                 * background color of an ace tab
+                 */
+                function updateTabBackground() {
+                    var tab = audioDoc.tab;
+                    var theme = ace.theme;
+
+                    // update editor's background color
+                    plugin.aml.$int.style.backgroundColor = theme.bg;
+
+                    // update pane container's style
+                    tabManager.containers.forEach(function(container) {
+                        if (theme.isDark)
+                            ui.setStyleClass(container, "dark");
+                        else
+                            ui.setStyleClass(container, "", ["dark"]);
+                    });
+
+                    // update tab background color
+                    tab.backgroundColor = theme.bg;
+
+                    // update tab title color
+                    if (theme.isDark)
+                        tab.classList.add("dark");
+                    else
+                        tab.classList.remove("dark");
+                }
+
+                // update tab background color on theme change
+                ace.on("themeChange", updateTabBackground, audioDoc);
+
+                // set tab background color initially
+                updateTabBackground();
             });
 
             // handle when tab for audio file becomes active
             plugin.on("documentActivate", function(e) {
                 var audioDoc = e.doc;
                 var session = audioDoc.getSession();
+
                 // hide current player from tab (if any)
                 if (currentSession && currentSession !== session) {
                     currentSession.audio.style.display = "none";
@@ -170,6 +216,7 @@ define(function(require, exports, module) {
                 if (!container.contains(currentSession.audio)) {
                     container.appendChild(currentSession.audio);
                 }
+
                 // ensure new player is visible
                 currentSession.audio.style.display = "initial";
 
@@ -186,8 +233,10 @@ define(function(require, exports, module) {
             plugin.on("documentUnload", function(e) {
                 var audioDoc = e.doc;
                 var audio = audioDoc.getSession().audio;
+
                 // remove player from pane
                 container.removeChild(audio);
+
                 // unwatch path if being watched
                 var path = audioDoc.tab.path;
                 unwatch(path);
