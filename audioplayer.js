@@ -1,7 +1,7 @@
 define(function(require, exports, module) {
     main.consumes = [
-        "dialog.alert", "dialog.error", "Editor", "editors", "ui", "vfs",
-        "watcher"
+        "dialog.alert", "dialog.error", "Editor", "editors", "layout",
+        "settings", "ui", "vfs", "watcher"
     ];
 
     main.provides = ["c9.ide.cs50.audioplayer"];
@@ -10,6 +10,8 @@ define(function(require, exports, module) {
     function main(options, imports, register) {
         var Editor = imports.Editor;
         var editors = imports.editors;
+        var layout = imports.layout;
+        var settings = imports.settings;
         var showAlert = imports["dialog.alert"].show;
         var showError = imports["dialog.error"].show;
         var ui = imports.ui;
@@ -26,6 +28,15 @@ define(function(require, exports, module) {
             "audioplayer", "Audio Player", AudioPlayer, extensions
         );
 
+        // tab background colors
+        var tabBackgrounds = {
+            "flat-light": "#F1F1F1",
+            "flat-dark": "#3D3D3D",
+            "light": "#D3D3D3",
+            "light-gray": "#D3D3D3",
+            "dark": "#3D3D3D",
+            "dark-gray": "#3D3D3D"
+        };
         var drawn = false;
         var watchedPaths = {};
 
@@ -152,6 +163,35 @@ define(function(require, exports, module) {
                         tab.close
                     );
                 });
+
+                /**
+                 * Sets background color of audio player tab according to a
+                 * theme.
+                 *
+                 * @param {object} e an object with a property, theme, whose
+                 * value is theme name
+                 */
+                function setTabBackground(e) {
+                    if (!_.isObject(e) || !_.isString(e.theme))
+                        return;
+
+                    var theme = e.theme;
+                    var tab = audioDoc.tab;
+
+                    // set tab background color based on theme
+                    tab.backgroundColor = tabBackgrounds[theme];
+
+                    if (theme === "dark")
+                        tab.classList.add("dark");
+                    else
+                        tab.classList.remove("dark");
+                }
+
+                // change tab background color on theme change
+                layout.on("themeChange", setTabBackground, audioDoc);
+
+                // set tab background color initially
+                setTabBackground({ theme: settings.get("user/general/@skin") });
             });
 
             // handle when tab for audio file becomes active
