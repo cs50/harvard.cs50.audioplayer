@@ -1,6 +1,6 @@
 define(function(require, exports, module) {
     main.consumes = [
-        "dialog.alert", "dialog.error", "Editor", "editors", "layout",
+        "ace", "dialog.alert", "dialog.error", "Editor", "editors", "layout",
         "settings", "ui", "vfs", "watcher"
     ];
 
@@ -8,6 +8,7 @@ define(function(require, exports, module) {
     return main;
 
     function main(options, imports, register) {
+        var ace = imports.ace;
         var Editor = imports.Editor;
         var editors = imports.editors;
         var layout = imports.layout;
@@ -28,15 +29,6 @@ define(function(require, exports, module) {
             "audioplayer", "Audio Player", AudioPlayer, extensions
         );
 
-        // tab background colors
-        var tabBackgrounds = {
-            "flat-light": "#F1F1F1",
-            "flat-dark": "#3D3D3D",
-            "light": "#D3D3D3",
-            "light-gray": "#D3D3D3",
-            "dark": "#3D3D3D",
-            "dark-gray": "#3D3D3D"
-        };
         var drawn = false;
         var watchedPaths = {};
 
@@ -165,33 +157,25 @@ define(function(require, exports, module) {
                 });
 
                 /**
-                 * Sets background color of audio player tab according to a
-                 * theme.
-                 *
-                 * @param {object} e an object with a property, theme, whose
-                 * value is theme name
+                 * Sets background color of audio player's tab to the same
+                 * background color of an ace tab
                  */
-                function setTabBackground(e) {
-                    if (!_.isObject(e) || !_.isString(e.theme))
-                        return;
-
-                    var theme = e.theme;
+                function updateTabBackground() {
                     var tab = audioDoc.tab;
 
-                    // set tab background color based on theme
-                    tab.backgroundColor = tabBackgrounds[theme];
-
-                    if (theme === "dark")
+                    // set tab background color
+                    tab.backgroundColor = ace.theme.bg;
+                    if (ace.theme.isDark === "dark")
                         tab.classList.add("dark");
                     else
                         tab.classList.remove("dark");
                 }
 
-                // change tab background color on theme change
-                layout.on("themeChange", setTabBackground, audioDoc);
+                // update tab background color on theme change
+                layout.on("themeChange", updateTabBackground, audioDoc);
 
                 // set tab background color initially
-                setTabBackground({ theme: settings.get("user/general/@skin") });
+                updateTabBackground();
             });
 
             // handle when tab for audio file becomes active
