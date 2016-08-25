@@ -242,13 +242,17 @@ define(function(require, exports, module) {
                 unwatch(path);
             });
 
-            plugin.freezePublicAPI({});
+            plugin.freezePublicAPI({
+                autoload: false
+            });
 
             plugin.load(null, "c9.ide.cs50.audioplayer");
 
             return plugin;
         }
 
+        // prevent download timeout
+        AudioPlayer.autoload = false;
         register(null, {
             "c9.ide.cs50.audioplayer": handle
         });
