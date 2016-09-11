@@ -171,29 +171,34 @@ define(function(require, exports, module) {
                     var tab = audioDoc.tab;
                     var theme = ace.theme;
 
-                    // update editor's background color
-                    plugin.aml.$int.style.backgroundColor = theme.bg;
+                    if (theme) {
+                        if (theme.bg) {
+                            // update the background color of the tab's pane
+                            tab.pane.aml.$ext.style.backgroundColor = theme.bg;
 
-                    // update pane container's style
-                    tabManager.containers.forEach(function(container) {
+                            // update tab background color
+                            tab.backgroundColor = theme.bg;
+                        }
+
+                        // update tab title color
                         if (theme.isDark)
-                            ui.setStyleClass(container, "dark");
+                            tab.classList.add("dark");
                         else
-                            ui.setStyleClass(container, "", ["dark"]);
-                    });
-
-                    // update tab background color
-                    tab.backgroundColor = theme.bg;
-
-                    // update tab title color
-                    if (theme.isDark)
-                        tab.classList.add("dark");
-                    else
-                        tab.classList.remove("dark");
+                            tab.classList.remove("dark");
+                    }
                 }
 
                 // update tab background color on theme change
                 ace.on("themeChange", updateTabBackground, audioDoc);
+
+                // update tab background after moving tab to different pane
+                tabManager.on("tabAfterReparent", function(e) {
+                    if (e.tab === audioDoc.tab)
+                        updateTabBackground();
+                });
+
+                // set tab background initially
+                updateTabBackground();
             });
 
             // handle when tab for audio file becomes active
