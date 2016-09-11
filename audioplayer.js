@@ -194,9 +194,6 @@ define(function(require, exports, module) {
 
                 // update tab background color on theme change
                 ace.on("themeChange", updateTabBackground, audioDoc);
-
-                // set tab background color initially
-                updateTabBackground();
             });
 
             // handle when tab for audio file becomes active
