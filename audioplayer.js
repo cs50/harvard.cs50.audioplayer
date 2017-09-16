@@ -1,7 +1,7 @@
 define(function(require, exports, module) {
     main.consumes = [
-        "ace", "dialog.alert", "dialog.error", "Editor", "editors", "layout",
-        "tabManager", "ui", "vfs", "watcher"
+        "ace", "c9", "Editor", "editors", "dialog.alert", "dialog.error",
+        "layout", "tabManager", "ui", "vfs", "watcher"
     ];
 
     main.provides = ["c9.ide.cs50.audioplayer"];
@@ -9,6 +9,7 @@ define(function(require, exports, module) {
 
     function main(options, imports, register) {
         var ace = imports.ace;
+        var c9 = imports.c9;
         var Editor = imports.Editor;
         var editors = imports.editors;
         var showAlert = imports["dialog.alert"].show;
@@ -61,6 +62,7 @@ define(function(require, exports, module) {
                 if (session.audio.src === fullPath) {
                     return;
                 }
+
                 // set/update src URL and load/reload
                 session.audio.src = fullPath;
                 session.audio.load();
@@ -201,8 +203,7 @@ define(function(require, exports, module) {
                 updateTabBackground();
             });
 
-            // handle when tab for audio file becomes active
-            plugin.on("documentActivate", function(e) {
+            function activate(e) {
                 var audioDoc = e.doc;
                 var session = audioDoc.getSession();
 
@@ -226,9 +227,16 @@ define(function(require, exports, module) {
                 setPath(audioDoc);
 
                 // preserve playing or pausing state (e.g., when moving player to another pane)
-                if (currentSession.paused === false && currentSession.audio.paused === true) {
+                if (currentSession.paused === false && currentSession.audio.paused === true)
                     currentSession.audio.play();
-                }
+            }
+
+            // handle when tab for audio file becomes active
+            plugin.on("documentActivate", function(e) {
+                if (c9.connected)
+                    activate(e);
+                else
+                    c9.on("connect", activate.bind(null, e));
             });
 
             // handle document unloading (e.g., when tab is closed or moved to another pane)
