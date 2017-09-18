@@ -236,7 +236,7 @@ define(function(require, exports, module) {
                 if (c9.connected)
                     activate(e);
                 else
-                    c9.on("connect", activate.bind(null, e));
+                    c9.once("connect", activate.bind(null, e));
             });
 
             // handle document unloading (e.g., when tab is closed or moved to another pane)
