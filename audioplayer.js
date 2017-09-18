@@ -32,6 +32,8 @@ define(function(require, exports, module) {
         var drawn = false;
         var watchedPaths = {};
 
+        var handler = null;
+
         /**
          * Audio player factory.
          */
@@ -233,10 +235,20 @@ define(function(require, exports, module) {
 
             // handle when tab for audio file becomes active
             plugin.on("documentActivate", function(e) {
-                if (c9.connected)
+                if (c9.connected) {
                     activate(e);
-                else
-                    c9.on("connect", activate.bind(null, e));
+                }
+                else {
+
+                    // ensure only handler for last activated tab is registered
+                    if (handler)
+                        c9.off("connect", handler);
+
+                    handler = activate.bind(null, e);
+
+                    // activate document on connect
+                    c9.once("connect", handler);
+                }
             });
 
             // handle document unloading (e.g., when tab is closed or moved to another pane)
