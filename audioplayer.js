@@ -133,9 +133,9 @@ define(function(require, exports, module) {
             // handle audio file when first opened or moved to different pane
             plugin.on("documentLoad", function(e) {
                 var audioDoc = e.doc;
-                audioDoc.meta.ignoreSave = true;
                 audioDoc.on("setValue", function() {
                     setPath(audioDoc);
+                    audioDoc.meta.ignoreSave = true;
                 });
                 var session = audioDoc.getSession();
 
