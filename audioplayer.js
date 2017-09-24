@@ -59,25 +59,40 @@ define(function(require, exports, module) {
                 var path = tab.path;
                 var session = audioDoc.getSession();
 
-                // get URL for file at path
-                var fullPath = path.match(/^\w+:\/\//) ? path : vfs.url(path);
-                if (session.audio.src === fullPath) {
-                    return;
-                }
+                // resolve path to url
+                var url = vfs.url(path);
 
-                // set/update src URL and load/reload
-                session.audio.src = fullPath;
-                session.audio.load();
+                // request file
+                var xhr = new XMLHttpRequest();
+                xhr.onload = function() {
+                    var reader = new FileReader();
+                    reader.onloadend = function() {
 
-                // set/update tab title and tooltip
-                audioDoc.title = basename(path);
-                audioDoc.tooltip = path;
+                        // set or update src data url and load audio
+                        if (session.audio.src === reader.result)
+                            return;
 
-                // watch file for removal or external renaming (e.g., renaming from terminal)
-                if (_.isUndefined(watchedPaths[path])) {
-                    watcher.watch(path);
-                    watchedPaths[path] = tab;
-                }
+                        session.audio.src = reader.result;
+                        session.audio.load();
+
+                        // set or update tab title and tooltip
+                        audioDoc.title = basename(path);
+                        audioDoc.tooltip = path;
+
+                        // watch file for removal or external renaming (e.g., renaming from terminal)
+                        if (_.isUndefined(watchedPaths[path])) {
+                            watcher.watch(path);
+                            watchedPaths[path] = tab;
+                        }
+                    }
+
+                    reader.readAsDataURL(xhr.response);
+                };
+
+                xhr.open("GET", url);
+                xhr.setRequestHeader("Cache-Control", "no-cache");
+                xhr.responseType = "blob";
+                xhr.send();
             }
 
             /**
@@ -118,6 +133,10 @@ define(function(require, exports, module) {
             // handle audio file when first opened or moved to different pane
             plugin.on("documentLoad", function(e) {
                 var audioDoc = e.doc;
+                audioDoc.on("setValue", function() {
+                    setPath(audioDoc);
+                    audioDoc.meta.ignoreSave = true;
+                });
                 var session = audioDoc.getSession();
 
                 // avoid re-creating audio element and re-adding listeners
