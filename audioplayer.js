@@ -134,6 +134,9 @@ define(function(require, exports, module) {
             plugin.on("documentLoad", function(e) {
                 var audioDoc = e.doc;
                 audioDoc.meta.ignoreSave = true;
+                audioDoc.on("setValue", function() {
+                    setPath(audioDoc);
+                });
                 var session = audioDoc.getSession();
 
                 // avoid re-creating audio element and re-adding listeners
