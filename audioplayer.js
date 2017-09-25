@@ -90,7 +90,6 @@ define(function(require, exports, module) {
                 };
 
                 xhr.open("GET", url);
-                xhr.setRequestHeader("Cache-Control", "no-cache");
                 xhr.responseType = "blob";
                 xhr.send();
             }
