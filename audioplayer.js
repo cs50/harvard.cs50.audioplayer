@@ -4,7 +4,7 @@ define(function(require, exports, module) {
         "layout", "tabManager", "ui", "vfs", "watcher"
     ];
 
-    main.provides = ["c9.ide.cs50.audioplayer"];
+    main.provides = ["harvard.cs50.audioplayer"];
     return main;
 
     function main(options, imports, register) {
@@ -286,7 +286,7 @@ define(function(require, exports, module) {
                 autoload: false
             });
 
-            plugin.load(null, "c9.ide.cs50.audioplayer");
+            plugin.load(null, "harvard.cs50.audioplayer");
 
             return plugin;
         }
@@ -294,7 +294,7 @@ define(function(require, exports, module) {
         // prevent download timeout
         AudioPlayer.autoload = false;
         register(null, {
-            "c9.ide.cs50.audioplayer": handle
+            "harvard.cs50.audioplayer": handle
         });
     }
 });
