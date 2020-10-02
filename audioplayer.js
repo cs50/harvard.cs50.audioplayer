@@ -1,126 +1,54 @@
 define(function(require, exports, module) {
     main.consumes = [
-        "ace", "c9", "Editor", "editors", "dialog.alert", "dialog.error",
-        "layout", "tabManager", "ui", "vfs", "watcher"
+        "ace", "Editor", "editors", "dialog.error", "tabManager", "ui", "vfs"
     ];
 
-    main.provides = ["c9.ide.cs50.audioplayer"];
+    main.provides = ["harvard.cs50.audioplayer"];
     return main;
 
     function main(options, imports, register) {
-        var ace = imports.ace;
-        var c9 = imports.c9;
-        var Editor = imports.Editor;
-        var editors = imports.editors;
-        var showAlert = imports["dialog.alert"].show;
-        var showError = imports["dialog.error"].show;
-        var tabManager = imports.tabManager;
-        var ui = imports.ui;
-        var vfs = imports.vfs;
-        var watcher = imports.watcher;
+        const ace = imports.ace;
+        const Editor = imports.Editor;
+        const editors = imports.editors;
+        const showError = imports["dialog.error"].show;
+        const tabManager = imports.tabManager;
+        const ui = imports.ui;
+        const vfs = imports.vfs;
 
-        var basename = require("path").basename;
-        var _ = require("lodash");
+        const basename = require("path").basename;
 
-        // targeted extensions
-        var extensions = ["mp3", "ogg", "wav"];
-        // register editor
-        var handle = editors.register(
+        // Supported extensions
+        const extensions = ["mp3", "ogg", "wav"];
+
+        // Register editor
+        const handle = editors.register(
             "audioplayer", "Audio Player", AudioPlayer, extensions
         );
-
-        var drawn = false;
-        var watchedPaths = {};
-
-        var handler = null;
 
         /**
          * Audio player factory.
          */
         function AudioPlayer() {
-            var plugin = new Editor("CS50", main.consumes, extensions);
+            let drawn = false;
+            const plugin = new Editor("CS50", main.consumes, extensions);
 
-            var container;
-            var currentSession;
+            let container;
 
-            /**
-             * Sets/updates URL of audio source, tab title to file name, and
-             * tooltip to path.
-             *
-             * @param {object} audioDoc the audio Document to extract data from and act on
-             */
-            function setPath(audioDoc) {
-                if (!_.isObject(audioDoc)
-                    || !_.isObject(audioDoc.tab)
-                    || !_.isString(audioDoc.tab.path))
-                    return;
-
-                var tab = audioDoc.tab;
-                var path = tab.path;
-                var session = audioDoc.getSession();
-
-                // resolve path to url
-                var url = vfs.url(path);
-
-                // request file
-                var xhr = new XMLHttpRequest();
-                xhr.onload = function() {
-                    var reader = new FileReader();
-                    reader.onloadend = function() {
-
-                        // set or update src data url and load audio
-                        if (session.audio.src === reader.result)
-                            return;
-
-                        session.audio.src = reader.result;
-                        session.audio.load();
-
-                        // set or update tab title and tooltip
-                        audioDoc.title = basename(path);
-                        audioDoc.tooltip = path;
-
-                        // watch file for removal or external renaming (e.g., renaming from terminal)
-                        if (_.isUndefined(watchedPaths[path])) {
-                            watcher.watch(path);
-                            watchedPaths[path] = tab;
-                        }
-                    }
-
-                    reader.readAsDataURL(xhr.response);
-                };
-
-                xhr.open("GET", url);
-                xhr.responseType = "blob";
-                xhr.send();
+            function setPath(doc) {
+                doc.title = basename(doc.tab.path);
+                doc.tooltip = doc.tab.path;
             }
 
-            /**
-             * Unwatched a file, if being watched
-             *
-             * @param {string} path the path of the file being watched
-             */
-            function unwatch(path) {
-                if (!_.isString(path))
-                    return;
-
-                if (watchedPaths[path])
-                {
-                    watcher.unwatch(path);
-                    delete watchedPaths[path];
-                }
-            }
-
-            // draw player (when editor instance first loaded in a pane)
+            // Draw player
             plugin.on("draw", function(e) {
-                // wrapper for player
+                if (drawn)
+                    return;
+
+                drawn = true;
+
                 container = document.createElement("div");
                 container.classList.add("playerwrapper");
                 e.htmlNode.appendChild(container);
-
-                // insert CSS once
-                if (drawn)
-                    return;
-                drawn = true;
 
                 ui.insertCss(
                     require("text!./style.css"),
@@ -129,172 +57,123 @@ define(function(require, exports, module) {
                 );
             });
 
-            // handle audio file when first opened or moved to different pane
             plugin.on("documentLoad", function(e) {
-                var audioDoc = e.doc;
-                audioDoc.on("setValue", function() {
-                    setPath(audioDoc);
-                    audioDoc.meta.ignoreSave = true;
-                });
-                var session = audioDoc.getSession();
+                const doc = e.doc;
 
-                // avoid re-creating audio element and re-adding listeners
+                // Prevent saving
+                doc.meta.ignoreSave = true;
+
+                const session = doc.getSession();
+
+                // Create audio element for current file
                 if (session.audio) {
                     return;
                 }
 
-                // create audio element
                 session.audio = document.createElement("audio");
                 session.audio.setAttribute("controls", "");
+                session.audio.setAttribute("controlsList", "nodownload");
                 session.audio.setAttribute("preload", "");
 
-                // show error message on loading errors
                 session.audio.addEventListener("error", function() {
                     showError("Error loading audio file");
                 });
 
-                // preserve playing or pausing state
-                session.audio.addEventListener("playing", function() {
-                    session.paused = false;
-                });
-                session.audio.addEventListener("pause", function() {
-                    session.paused = true;
-                });
-
-                // handle renaming file from tree while open
-                audioDoc.tab.on("setPath", function(e) {
-                    setPath(audioDoc);
+                // Update tab title and tooltip after rename
+                doc.tab.on("setPath", function(e) {
+                    setPath(doc);
                 }, session);
 
-                // alert user and close tab if file no longer available
-                watcher.on("delete", function(e) {
-                    var path = e.path;
-                    var tab = watchedPaths[path];
-
-                    // ensure path is being watched
-                    if (_.isUndefined(tab))
-                        return;
-                    unwatch(path);
-
-                    // alert user and close tab
-                    showAlert(
-                        "File is no longer available",
-                        path + " is no longer available",
-                        null,
-                        tab.close
-                    );
-                });
-
                 /**
-                 * Sets background color of audio player's tab to the same
-                 * background color of an ace tab
+                 * Updates editor's background colors
                  */
                 function updateTabBackground() {
-                    var tab = audioDoc.tab;
-                    var theme = ace.theme;
+                    const tab = doc.tab;
+                    const theme = ace.theme;
 
                     if (theme) {
+                        // Update background of pane and tab
                         if (theme.bg) {
-                            // update the background color of the tab's pane
-                            tab.pane.aml.$ext.style.backgroundColor = theme.bg;
-
-                            // update tab background color
-                            tab.backgroundColor = theme.bg;
+                            tab.pane.aml.$ext.style.backgroundColor = tab.backgroundColor = theme.bg;
                         }
 
-                        // update tab title color
-                        if (theme.isDark)
+                        // Update background of tab title
+                        if (theme.isDark) {
                             tab.classList.add("dark");
-                        else
+                        }
+                        else {
                             tab.classList.remove("dark");
+                        }
                     }
                 }
 
-                // update tab background color on theme change
-                ace.on("themeChange", updateTabBackground, audioDoc);
+                // Update background colors on theme change
+                ace.on("themeChange", updateTabBackground, doc);
 
-                // update tab background after moving tab to different pane
+                // Update background colors after moving tab
                 tabManager.on("tabAfterReparent", function(e) {
-                    if (e.tab === audioDoc.tab)
+                    if (e.tab === doc.tab) {
                         updateTabBackground();
+                    }
                 });
 
-                // set tab background initially
+                // Initialize background colors
                 updateTabBackground();
             });
 
-            function activate(e) {
-                var audioDoc = e.doc;
-                var session = audioDoc.getSession();
-
-                // hide current player from tab (if any)
-                if (currentSession && currentSession !== session) {
-                    currentSession.audio.style.display = "none";
-                }
-
-                // update current session
-                currentSession = session;
-
-                // ensure new player is attached to container
-                if (!container.contains(currentSession.audio)) {
-                    container.appendChild(currentSession.audio);
-                }
-
-                // ensure new player is visible
-                currentSession.audio.style.display = "initial";
-
-                // set/update player src URL
-                setPath(audioDoc);
-
-                // preserve playing or pausing state (e.g., when moving player to another pane)
-                if (currentSession.paused === false && currentSession.audio.paused === true)
-                    currentSession.audio.play();
-            }
-
-            // handle when tab for audio file becomes active
             plugin.on("documentActivate", function(e) {
-                if (c9.connected) {
-                    activate(e);
+                const doc = e.doc;
+                const session = doc.getSession();
+
+                // Load the audio file
+                if (!session.audio.src) {
+                    vfs.rest(doc.tab.path, {responseType: "blob"}, function(err, res) {
+                        if (err) {
+                            console.error(err);
+                            return;
+                        }
+
+                        session.audio.src = window.URL.createObjectURL(res);
+                    });
                 }
-                else {
 
-                    // ensure only handler for last activated tab is registered
-                    if (handler)
-                        c9.off("connect", handler);
-
-                    handler = activate.bind(null, e);
-
-                    // activate document on connect
-                    c9.once("connect", handler);
+                // Append audio element to current editor's container
+                if (!container.contains(session.audio)) {
+                    container.appendChild(session.audio);
                 }
+
+                // Hide current audio element if it belongs to different file
+                if (container.currAudio && container.currAudio !== session.audio) {
+                    container.currAudio.style.display = "none";
+                }
+
+                // Show audio element of current file
+                session.audio.style.display = "initial";
+
+                // Update current audio element in container
+                container.currAudio = session.audio;
             });
 
-            // handle document unloading (e.g., when tab is closed or moved to another pane)
             plugin.on("documentUnload", function(e) {
-                var audioDoc = e.doc;
-                var audio = audioDoc.getSession().audio;
-
-                // remove player from pane
-                container.removeChild(audio);
-
-                // unwatch path if being watched
-                var path = audioDoc.tab.path;
-                unwatch(path);
+                const audio = e.doc.getSession().audio;
+                if (audio) {
+                    container.removeChild(audio);
+                }
             });
 
             plugin.freezePublicAPI({
                 autoload: false
             });
 
-            plugin.load(null, "c9.ide.cs50.audioplayer");
+            plugin.load(null, "harvard.cs50.audioplayer");
 
             return plugin;
         }
 
-        // prevent download timeout
+        // Prevent loading data
         AudioPlayer.autoload = false;
         register(null, {
-            "c9.ide.cs50.audioplayer": handle
+            "harvard.cs50.audioplayer": handle
         });
     }
 });

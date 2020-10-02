@@ -6,7 +6,7 @@
     }
   ],
   "description": "Adds an audio player to the CS50 IDE.",
-  "name": "c9.ide.cs50.audioplayer",
+  "name": "harvard.cs50.audioplayer",
   "plugins": {
     "audioplayer": {}
   }
